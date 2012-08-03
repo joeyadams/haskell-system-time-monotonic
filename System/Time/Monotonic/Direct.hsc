@@ -3,7 +3,7 @@
 -- Copyright:   (c) Joseph Adams 2012
 -- License:     BSD3
 -- Maintainer:  joeyadams3.14159@gmail.com
--- Portability: Requires FFI; tested on Linux and Windows
+-- Portability: Tested on Linux and Windows
 --
 -- This module provides more direct access to the system's monotonic clock, but
 -- does not take care of the 49.7 day wraparound issue for you.  Use with care.

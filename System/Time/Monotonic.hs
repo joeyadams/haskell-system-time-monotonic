@@ -3,7 +3,7 @@
 -- Copyright:   (c) Joseph Adams 2012
 -- License:     BSD3
 -- Maintainer:  joeyadams3.14159@gmail.com
--- Portability: Tested on Linux and Windows.  Requires FFI, threads, and weak pointers.
+-- Portability: Tested on Linux and Windows.
 --
 -- Simple library for using the system's monotonic clock.  This library is
 -- intended to be portable and reliable, but does not (necessarily) provide
