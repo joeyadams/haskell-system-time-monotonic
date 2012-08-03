@@ -76,7 +76,6 @@ nudgePeriodically (Clock ref) = do
                 case m of
                     Nothing   -> return ()
                     Just ref' -> do
-                        putStrLn "Nudge"
                         _ <- clockGetTime (Clock ref')
                         threadDelay 60000000
                         loop
