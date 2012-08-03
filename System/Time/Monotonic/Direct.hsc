@@ -30,18 +30,20 @@ import Foreign.C
 --  * Don't compare two results of 'getMonotonicTimeMSec32' that are more than 49.7
 --    days apart.
 --
---  * Perform the subtraction on 'Word32' times.  Do this:
+--  * Perform the subtraction on 'Word32' times.
 --
---    >now <- getMonotonicTimeMSec32
---    >let elapsed = fromIntegral (now - before)
+-- Do this:
 --
---    Not this:
+-- >now <- getMonotonicTimeMSec32
+-- >let elapsed = fromIntegral (now - before)
 --
---    >now <- getMonotonicTimeMSec32
---    >let elapsed = fromIntegral now - fromIntegral before -- WRONG
+-- Not this:
 --
---    When overflow occurs, subtraction modulo 2^32 will do the right thing.
---    See <http://stackoverflow.com/a/9232314/149391>.
+-- >now <- getMonotonicTimeMSec32
+-- >let elapsed = fromIntegral now - fromIntegral before -- WRONG
+--
+-- When overflow occurs, subtraction modulo 2^32 will do the right thing.
+-- See <http://stackoverflow.com/a/9232314/149391>.
 --
 -- On Windows, this is just @GetTickCount@.  For systems that provide
 -- additional precision or have a larger wraparound, that information is simply
