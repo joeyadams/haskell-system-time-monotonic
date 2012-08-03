@@ -23,6 +23,10 @@ cabal-version:      >=1.8
 extra-source-files:
     testing/nudge-gc.hs
 
+source-repository head
+    type:       git
+    location:   git://github.com/joeyadams/haskell-system-time-monotonic.git
+
 library
     exposed-modules:
         System.Time.Monotonic
