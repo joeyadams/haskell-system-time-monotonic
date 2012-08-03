@@ -10,8 +10,9 @@ module System.Time.Monotonic (
     newClock,
     clockGetTime,
 
-    -- * Time representation
+    -- * MSec
     MSec(..),
+    threadDelayMSec,
 ) where
 
 import System.Time.Monotonic.Direct (getMonotonicTimeMSec32)
@@ -22,9 +23,8 @@ import Data.IORef
 import Data.Word            (Word32)
 import System.Mem.Weak      (deRefWeak)
 
--- | A duration, measured in milliseconds.
-newtype MSec = MSec Int64
-    deriving (Eq, Ord, Show)
+------------------------------------------------------------------------
+-- Clock
 
 newtype Clock = Clock (IORef ClockData)
     deriving Eq
@@ -74,3 +74,24 @@ nudgePeriodically (Clock ref) = do
 
     mkWeakIORef ref (killThread tid)
         >>= putMVar weak_mv
+
+------------------------------------------------------------------------
+-- MSec
+
+-- | A duration, measured in milliseconds.
+newtype MSec = MSec Int64
+    deriving (Eq, Ord, Show)
+
+-- | Variant of 'threadDelay' for 'MSec'.  This takes care of overflow.
+threadDelayMSec :: MSec -> IO ()
+threadDelayMSec (MSec msec)
+    | msec <= 0       = return ()
+    | msec <= maxWait = wait msec
+    | otherwise       = wait maxWait
+                     >> threadDelayMSec (MSec (msec - maxWait))
+  where
+    -- maxWait is 100 seconds.  2^31-1 microseconds is about 2147 seconds.
+    -- This gives the implementation of 'threadDelay' plenty of leeway if it
+    -- needs to do some arithmetic on the time value first.
+    maxWait = 100000
+    wait    = threadDelay . (* 1000) . fromIntegral
