@@ -22,6 +22,7 @@ cabal-version:      >=1.8
 
 extra-source-files:
     testing/nudge-gc.hs
+    testing/threadDelayMSec.hs
 
 source-repository head
     type:       git
