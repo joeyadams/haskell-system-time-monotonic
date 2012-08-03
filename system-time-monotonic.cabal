@@ -1,0 +1,24 @@
+name:               system-time-monotonic
+version:            0.1
+synopsis:           Simple library for using the system's monotonic clock
+-- description:
+homepage:           https://github.com/joeyadams/haskell-system-time-monotonic
+license:            BSD3
+license-file:       LICENSE
+author:             Joey Adams
+maintainer:         joeyadams3.14159@gmail.com
+copyright:          Copyright (c) Joseph Adams 2012
+category:           System
+build-type:         Simple
+cabal-version:      >=1.8
+
+library
+    exposed-modules:
+        System.Time.Monotonic
+        System.Time.Monotonic.Direct
+
+    build-tools: hsc2hs
+
+    ghc-options: -Wall -fwarn-tabs
+
+    build-depends : base == 4.*
