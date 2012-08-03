@@ -4,15 +4,6 @@
 -- License:     BSD3
 -- Maintainer:  joeyadams3.14159@gmail.com
 -- Portability: Tested on Linux and Windows.
---
--- Simple library for using the system's monotonic clock.  This library is
--- intended to be portable and reliable, but does not (necessarily) provide
--- high-resolution timing.
---
--- On Windows, this uses @GetTickCount@, and on Linux, it uses @clock_gettime@
--- with @CLOCK_MONOTONIC@.  In both cases, the 'Clock' object avoids wraparound
--- issues by getting the system time periodically, to avoid comparing two
--- system times that are too far apart.
 module System.Time.Monotonic (
     -- * Clock
     Clock,

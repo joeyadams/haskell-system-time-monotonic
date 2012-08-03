@@ -1,7 +1,15 @@
 name:               system-time-monotonic
 version:            0.1
 synopsis:           Simple library for using the system's monotonic clock
--- description:
+description:
+    Simple library for using the system's monotonic clock.  This library is
+    intended to be portable and reliable, but does not (necessarily) provide
+    high-resolution timing.
+    .
+    On Windows, this uses @GetTickCount@, and on Linux, it uses @clock_gettime@
+    with @CLOCK_MONOTONIC@.  In both cases, the 'Clock' object avoids
+    wraparound issues by getting the system time periodically, to avoid
+    comparing two system times that are too far apart.
 homepage:           https://github.com/joeyadams/haskell-system-time-monotonic
 license:            BSD3
 license-file:       LICENSE
