@@ -1,3 +1,6 @@
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 -- |
 -- Module:      System.Time.Monotonic.Direct
 -- Copyright:   (c) Joseph Adams 2012
@@ -5,10 +8,13 @@
 -- Maintainer:  joeyadams3.14159@gmail.com
 -- Portability: Tested on Linux and Windows
 --
--- This module provides more direct access to the system's monotonic clock, but
--- does not take care of the 49.7 day wraparound issue for you.  Use with care.
-{-# LANGUAGE ForeignFunctionInterface #-}
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+-- This module provides more direct access to the system's monotonic clock,
+-- provides less protection against wraparound.  The higher-level
+-- 'System.Time.Monotonic.Clock' updates its internal disposition every time
+-- 'System.Time.Monotonic.clockGetTime' is called, so the only way to get
+-- a wraparound issue is to call 'System.Time.Monotonic.clockGetTime'
+-- very seldomly (e.g. less than once every 49.7 days, if @GetTickCount@ is
+-- being used).
 module System.Time.Monotonic.Direct (
     getMonotonicTimeMSec32,
 ) where
