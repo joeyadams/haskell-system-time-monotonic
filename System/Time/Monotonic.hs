@@ -21,7 +21,6 @@ import Control.Concurrent
 import Data.Int             (Int64)
 import Data.IORef
 import Data.Word            (Word32)
-import System.Mem.Weak      (deRefWeak)
 
 ------------------------------------------------------------------------
 -- Clock
@@ -34,15 +33,10 @@ newtype Clock = Clock (IORef ClockData)
 data ClockData = ClockData !Int64 !Word32
 
 -- | Create a new 'Clock'.
---
--- Performance consideration: this will fork a thread that periodically gets
--- the time and updates the clock's internal disposition.  That thread will go
--- away when the 'Clock' is garbage collected.
 newClock :: IO Clock
 newClock = do
     st <- getMonotonicTimeMSec32
     ref <- newIORef (ClockData 0 st)
-    nudgePeriodically (Clock ref)
     return (Clock ref)
 
 -- | Return the amount of time that has elapsed since the clock was created
@@ -55,25 +49,6 @@ clockGetTime (Clock ref) = do
             let t2 = t1 + fromIntegral (st2 - st1)
              in (ClockData t2 st2, t2)
     t2 `seq` return (MSec t2)
-
-nudgePeriodically :: Clock -> IO ()
-nudgePeriodically (Clock ref) = do
-    weak_mv <- newEmptyMVar
-
-    tid <- forkIO $ do
-        weak <- takeMVar weak_mv
-        let loop = do
-                m <- deRefWeak weak
-                case m of
-                    Nothing   -> return ()
-                    Just ref' -> do
-                        _ <- clockGetTime (Clock ref')
-                        threadDelay 60000000
-                        loop
-         in loop
-
-    mkWeakIORef ref (killThread tid)
-        >>= putMVar weak_mv
 
 ------------------------------------------------------------------------
 -- MSec

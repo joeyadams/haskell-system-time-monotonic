@@ -6,10 +6,10 @@ description:
     intended to be portable and reliable, but does not (necessarily) provide
     high-resolution timing.
     .
-    On Windows, this uses @GetTickCount@, and on Linux, it uses @clock_gettime@
-    with @CLOCK_MONOTONIC@.  In both cases, the 'Clock' object avoids
-    wraparound issues by getting the system time periodically, to avoid
-    comparing two system times that are too far apart.
+        * On Windows, this uses @QueryPerformanceCounter@.  If that is not
+          available, it falls back to @GetTickCount@.
+    .
+        * On Linux, this uses @clock_gettime@ with @CLOCK_MONOTONIC@.
 homepage:           https://github.com/joeyadams/haskell-system-time-monotonic
 license:            BSD3
 license-file:       LICENSE
