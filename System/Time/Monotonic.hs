@@ -9,6 +9,7 @@ module System.Time.Monotonic (
     -- * Clock
     Clock,
     newClock,
+    newClockWithDriver,
     clockGetTime,
 
     -- * Utilities
@@ -38,15 +39,20 @@ data Clock = forall time. Clock !(SystemClock time) !(IORef (ClockData time))
 -- 'systemClockGetTime' at a given point in time.
 data ClockData time = ClockData !DiffTime !time
 
--- | Create a new 'Clock'.
+-- | Create a new 'Clock'.  The result of 'clockGetTime' is based on the time
+-- 'newClock' was called.
 newClock :: IO Clock
-newClock = do
-    ssc <- getSystemClock
-    case ssc of
-        SomeSystemClock clock -> do
-            st <- systemClockGetTime clock
-            ref <- newIORef (ClockData 0 st)
-            return (Clock clock ref)
+newClock = newClockWithDriver =<< getSystemClock
+
+-- | Variant of 'newClock' that uses the given driver.  This can be used if you
+-- want to use a different time source than the default.
+--
+-- @'newClock' = 'newClockWithDriver' =<< 'getSystemClock'@
+newClockWithDriver :: SomeSystemClock -> IO Clock
+newClockWithDriver (SomeSystemClock clock) = do
+    st <- systemClockGetTime clock
+    ref <- newIORef (ClockData 0 st)
+    return (Clock clock ref)
 
 -- | Return the amount of time that has elapsed since the clock was created
 -- with 'newClock'.

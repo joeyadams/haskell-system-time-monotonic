@@ -5,8 +5,6 @@ test :: DiffTime -> CTimeSpec -> CTimeSpec -> IO Bool
 test expected new old =
     return $ diffCTimeSpec new old == expected
           && diffCTimeSpec old new == -expected
-  where
-    diffCTimeSpec = systemClockDiffTime systemClock_MONOTONIC
 
 main :: IO ()
 main = do

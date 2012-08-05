@@ -28,8 +28,12 @@ module System.Time.Monotonic.Direct (
 #if mingw32_HOST_OS
     systemClock_GetTickCount,
 #else
-    CTimeSpec(..),
     systemClock_MONOTONIC,
+
+    -- ** Internal definitions
+    CTimeSpec(..),
+    diffCTimeSpec,
+    peekCTimeSpec,
 #endif
 ) where
 
@@ -104,6 +108,11 @@ data CTimeSpec = CTimeSpec
         -- ^ nanoseconds.  1 second = 10^9 nanoseconds
     }
 
+diffCTimeSpec :: CTimeSpec -> CTimeSpec -> DiffTime
+diffCTimeSpec a b
+  = fromIntegral (tv_sec a - tv_sec b)
+  + fromIntegral (tv_nsec a - tv_nsec b) / 1000000000
+
 peekCTimeSpec :: Ptr CTimeSpec -> IO CTimeSpec
 peekCTimeSpec ptr = do
     sec  <- #{peek struct timespec, tv_sec}  ptr
@@ -111,11 +120,6 @@ peekCTimeSpec ptr = do
     return CTimeSpec { tv_sec  = sec
                      , tv_nsec = nsec
                      }
-
-diffCTimeSpec :: CTimeSpec -> CTimeSpec -> DiffTime
-diffCTimeSpec a b
-  = fromIntegral (tv_sec a - tv_sec b)
-  + fromIntegral (tv_nsec a - tv_nsec b) / 1000000000
 
 -- | @clock_gettime(CLOCK_MONOTONIC)@
 systemClock_MONOTONIC :: SystemClock CTimeSpec
