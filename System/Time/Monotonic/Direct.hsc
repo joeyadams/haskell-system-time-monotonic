@@ -28,7 +28,7 @@ module System.Time.Monotonic.Direct (
     systemClock_GetTickCount,
 #else
     CTimeSpec(..),
-    systemClock_clock_gettime,
+    systemClock_MONOTONIC,
 #endif
 ) where
 
@@ -65,8 +65,8 @@ data SystemClock time = SystemClock
         -- using a single 'System.Time.Monotonic.Clock' might ask for the time
         -- simultaneously, possibly resulting in @new@ being before @old@.
     , systemClockName     :: String
-        -- ^ Label identifying this clock, like @\"clock_gettime\"@ or
-        --   @\"GetTickCount\"@.
+        -- ^ Label identifying this clock, like
+        -- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or @\"GetTickCount\"@.
     }
 
 -- | Return a module used for accessing the system's monotonic clock.  The
@@ -79,7 +79,7 @@ getSystemClock =
     return $ SomeSystemClock systemClock_GetTickCount
 #else
 getSystemClock =
-    return $ SomeSystemClock systemClock_clock_gettime
+    return $ SomeSystemClock systemClock_MONOTONIC
 #endif
 
 #if mingw32_HOST_OS
@@ -112,17 +112,36 @@ peekCTimeSpec ptr = do
                      , tv_nsec = nsec
                      }
 
-systemClock_clock_gettime :: SystemClock CTimeSpec
-systemClock_clock_gettime =
+diffCTimeSpec :: CTimeSpec -> CTimeSpec -> MSec
+diffCTimeSpec = undefined -- TODO
+
+-- | @clock_gettime(CLOCK_MONOTONIC)@
+systemClock_MONOTONIC :: SystemClock CTimeSpec
+systemClock_MONOTONIC =
     SystemClock
-    { systemClockGetTime  =
-        allocaBytes #{size struct timespec} $ \ptr -> do
-            throwErrnoIfMinus1_ "clock_gettime" $
-                c_clock_gettime #{const CLOCK_MONOTONIC} ptr
-            peekCTimeSpec ptr
-    , systemClockDiffTime = undefined -- TODO
-    , systemClockName     = "clock_gettime"
+    { systemClockGetTime  = clock_gettime #{const CLOCK_MONOTONIC}
+    , systemClockDiffTime = diffCTimeSpec
+    , systemClockName     = "clock_gettime(CLOCK_MONOTONIC)"
     }
+
+-- CLOCK_MONOTONIC_RAW is more reliable, but requires
+-- a recent kernel and glibc.
+--
+-- -- | @clock_gettime(CLOCK_MONOTONIC_RAW)@
+-- systemClock_MONOTONIC_RAW :: SystemClock CTimeSpec
+-- systemClock_MONOTONIC_RAW =
+--     SystemClock
+--     { systemClockGetTime  = clock_gettime #{const CLOCK_MONOTONIC_RAW}
+--     , systemClockDiffTime = diffCTimeSpec -- TODO
+--     , systemClockName     = "clock_gettime(CLOCK_MONOTONIC_RAW)"
+--     }
+
+clock_gettime :: #{type clockid_t} -> IO CTimeSpec
+clock_gettime clk_id =
+    allocaBytes #{size struct timespec} $ \ptr -> do
+        throwErrnoIfMinus1_ "clock_gettime" $
+            c_clock_gettime clk_id ptr
+        peekCTimeSpec ptr
 
 foreign import ccall "time.h clock_gettime"
     c_clock_gettime :: #{type clockid_t}
