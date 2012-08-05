@@ -54,7 +54,7 @@ data SystemClock time = SystemClock
         --
         -- This function should obey the following law:
         --
-        -- >systemClockDiffTime a b = -(systemClockDiffTime b a)
+        -- >systemClockDiffTime a b == -(systemClockDiffTime b a)
         --
         -- That is, if @new < old@, 'systemClockDiffTime' should not return
         -- something weird because it thinks overflow occurred.  Two threads
@@ -111,7 +111,9 @@ peekCTimeSpec ptr = do
                      }
 
 diffCTimeSpec :: CTimeSpec -> CTimeSpec -> DiffTime
-diffCTimeSpec = undefined -- TODO
+diffCTimeSpec a b
+  = fromIntegral (tv_sec a - tv_sec b)
+  + fromIntegral (tv_nsec a - tv_nsec b) / 1000000000
 
 -- | @clock_gettime(CLOCK_MONOTONIC)@
 systemClock_MONOTONIC :: SystemClock CTimeSpec
