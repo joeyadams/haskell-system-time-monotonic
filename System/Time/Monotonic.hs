@@ -12,13 +12,14 @@ module System.Time.Monotonic (
     clockGetTime,
 
     -- * Utilities
-    threadDelayDiffTime,
+    delay,
 ) where
 
 import System.Time.Monotonic.Direct
 
+import Control.Concurrent   (threadDelay)
 import Data.IORef
-import Data.Time.Clock  (DiffTime)
+import Data.Time.Clock      (DiffTime)
 
 ------------------------------------------------------------------------
 -- Clock
@@ -58,20 +59,25 @@ clockGetTime (Clock clock ref) = do
              in (ClockData t2 st2, t2)
     t2 `seq` return t2
 
--- | Variant of 'threadDelay' for 'DiffTime'.  This takes care of overflow.
-threadDelayDiffTime :: DiffTime -> IO ()
-threadDelayDiffTime = undefined
-
-{-
-threadDelayMSec (MSec msec)
-    | msec <= 0       = return ()
-    | msec <= maxWait = wait msec
-    | otherwise       = wait maxWait
-                     >> threadDelayMSec (MSec (msec - maxWait))
+-- | Variant of 'threadDelay' for 'DiffTime'.
+delay :: DiffTime -> IO ()
+delay difftime =
+    loop $ ceiling $ difftime * 1000000
   where
+    loop :: Integer -> IO ()
+    loop usec
+        | usec <= maxWait = wait usec
+        | otherwise       = wait maxWait
+                         >> loop (usec - maxWait)
+
     -- maxWait is 100 seconds.  2^31-1 microseconds is about 2147 seconds.
     -- This gives the implementation of 'threadDelay' plenty of leeway if it
     -- needs to do some arithmetic on the time value first.
-    maxWait = 100000
-    wait    = threadDelay . (* 1000) . fromIntegral
--}
+    maxWait = 100000000
+
+    wait usec = case fromIntegral usec of
+        n | n > 0     -> threadDelay n
+          | otherwise -> return ()
+            -- Guard against negative argument to threadDelay,
+            -- for earlier versions of base.
+            -- See http://hackage.haskell.org/trac/ghc/ticket/2892
