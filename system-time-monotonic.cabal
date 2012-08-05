@@ -24,6 +24,7 @@ extra-source-files:
     testing/clock.hs
     testing/delay.hs
     testing/diffCTimeSpec.hs
+    testing/leak.hs
 
 source-repository head
     type:       git
