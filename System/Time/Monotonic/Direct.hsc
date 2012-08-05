@@ -9,12 +9,14 @@
 -- Portability: Tested on Linux and Windows
 --
 -- This module provides more direct access to the system's monotonic clock,
--- provides less protection against wraparound.  The higher-level
+-- but provides less protection against wraparound.
+--
+-- More specifically, in the higher-level "System.Time.Monotonic" API,
 -- 'System.Time.Monotonic.Clock' updates its internal disposition every time
--- 'System.Time.Monotonic.clockGetTime' is called, so the only way to get
--- a wraparound issue is to call 'System.Time.Monotonic.clockGetTime'
--- very seldomly (e.g. less than once every 49.7 days, if @GetTickCount@ is
--- being used).
+-- 'System.Time.Monotonic.clockGetTime' is called.  The only way to get a
+-- wraparound issue with the higher-level API is to call
+-- 'System.Time.Monotonic.clockGetTime' very seldomly (e.g. less than once
+-- every 49.7 days, if @GetTickCount@ is being used).
 module System.Time.Monotonic.Direct (
     getSystemClock,
     SomeSystemClock(..),
@@ -54,9 +56,9 @@ data SystemClock time = SystemClock
         --
         -- This function should obey the following law:
         --
-        -- >systemClockDiffTime a b == -(systemClockDiffTime b a)
+        -- >systemClockDiffTime new old == -(systemClockDiffTime old new)
         --
-        -- That is, if @new < old@, 'systemClockDiffTime' should not return
+        -- That is, if @new < old@, @systemClockDiffTime@ should not return
         -- something weird because it thinks overflow occurred.  Two threads
         -- using a single 'System.Time.Monotonic.Clock' might ask for the time
         -- simultaneously, possibly resulting in @new@ being before @old@.
