@@ -1,6 +1,7 @@
 *.exe
 *.hi
 *.o
+bombard
 clock
 delay
 diffCTimeSpec

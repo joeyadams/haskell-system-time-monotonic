@@ -37,6 +37,12 @@ data Clock = forall time. Clock !(SystemClock time) !(IORef (ClockData time))
 
 -- | The externally reported time, paired with the return value of
 -- 'systemClockGetTime' at a given point in time.
+--
+-- The disposition between the 'DiffTime' and the @time@ is set when 'newClock'
+-- is called, and remains constant for the lifetime of the 'Clock'.
+-- 'clockGetTime' merely increments both quantities by the same amount.
+-- Therefore, barring precision loss, calling 'clockGetTime' frequently should
+-- not degrade the accuracy of the clock.
 data ClockData time = ClockData !DiffTime !time
 
 -- | Create a new 'Clock'.  The result of 'clockGetTime' is based on the time
