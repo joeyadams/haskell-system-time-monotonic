@@ -37,12 +37,12 @@ module System.Time.Monotonic.Direct (
 import Data.Int
 import Data.Time.Clock  (DiffTime)
 import Data.Word
+import Foreign          (Ptr, allocaBytes, peekByteOff)
 
 #if mingw32_HOST_OS
 import Data.Ratio ((%))
 #include <Windows.h>
 #else
-import Foreign
 import Foreign.C
 #include <time.h>
 #endif
@@ -90,12 +90,12 @@ getSystemClock =
 
 qpcDiffTime :: Int64 -> Int64 -> Int64 -> DiffTime
 qpcDiffTime freq new old =
-    fromRational $ fromIntegral (new - old) % freq
+    fromRational $ fromIntegral (new - old) % fromIntegral freq
 
 systemClock_QueryPerformanceCounter :: IO (Maybe (SystemClock Int64))
 systemClock_QueryPerformanceCounter = do
-    m <- callQP c_QueryPerformanceFrequency
-    case m of
+    mfreq <- callQP c_QueryPerformanceFrequency
+    case mfreq of
         Nothing   -> return Nothing
         Just 0    -> return Nothing -- Shouldn't happen; just a safeguard to
                                     -- prevent zero denominator in 'qpcDiffTime'.
