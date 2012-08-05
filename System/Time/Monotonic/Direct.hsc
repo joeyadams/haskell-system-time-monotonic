@@ -19,7 +19,6 @@ module System.Time.Monotonic.Direct (
     getSystemClock,
     SomeSystemClock(..),
     SystemClock(..),
-    MSec(..),
 
     -- * Implementation(s)
     -- | The set of definitions below is platform-dependent.
@@ -33,6 +32,7 @@ module System.Time.Monotonic.Direct (
 ) where
 
 import Data.Int
+import Data.Time.Clock  (DiffTime)
 import Data.Word
 
 #if mingw32_HOST_OS
@@ -43,16 +43,12 @@ import Foreign.C
 #include <time.h>
 #endif
 
--- | A duration, measured in milliseconds.
-newtype MSec = MSec Int64
-    deriving (Eq, Ord, Show)
-
 -- | Existentially-quantified wrapper around 'SystemClock'
 data SomeSystemClock = forall time. SomeSystemClock (SystemClock time)
 
 data SystemClock time = SystemClock
     { systemClockGetTime  :: IO time
-    , systemClockDiffTime :: time -> time -> MSec
+    , systemClockDiffTime :: time -> time -> DiffTime
         -- ^ @systemClockDiffTime new old@ returns the amount of time that has
         -- elapsed between two calls to @systemClockGetTime@.
         --
@@ -88,7 +84,9 @@ systemClock_GetTickCount :: SystemClock Word32
 systemClock_GetTickCount =
     SystemClock
     { systemClockGetTime  = c_GetTickCount
-    , systemClockDiffTime = \a b -> fromIntegral (a - b)
+    , systemClockDiffTime = \a b -> fromIntegral (a - b :: Word32) / 1000
+                                    -- NB: Do the subtraction modulo 2^32,
+                                    --     to handle wraparound properly.
     , systemClockName     = "GetTickCount"
     }
 
@@ -112,7 +110,7 @@ peekCTimeSpec ptr = do
                      , tv_nsec = nsec
                      }
 
-diffCTimeSpec :: CTimeSpec -> CTimeSpec -> MSec
+diffCTimeSpec :: CTimeSpec -> CTimeSpec -> DiffTime
 diffCTimeSpec = undefined -- TODO
 
 -- | @clock_gettime(CLOCK_MONOTONIC)@

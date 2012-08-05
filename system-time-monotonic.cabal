@@ -37,4 +37,5 @@ library
 
     ghc-options: -Wall -fwarn-tabs
 
-    build-depends : base == 4.*
+    build-depends   : base == 4.*
+                    , time
