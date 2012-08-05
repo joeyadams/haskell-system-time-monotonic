@@ -1,6 +1,7 @@
 *.exe
 *.hi
 *.o
+benchmark
 bombard
 clock
 delay
