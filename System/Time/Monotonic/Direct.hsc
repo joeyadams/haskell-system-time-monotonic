@@ -38,7 +38,7 @@ module System.Time.Monotonic.Direct (
 import Data.Int
 import Data.Time.Clock  (DiffTime)
 import Data.Word
-import Foreign          (Ptr, allocaBytes, peekByteOff)
+import Foreign          (Ptr, FunPtr, allocaBytes, nullFunPtr, peekByteOff)
 
 #if mingw32_HOST_OS
 import Data.Ratio ((%))
