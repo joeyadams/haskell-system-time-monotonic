@@ -11,6 +11,7 @@ module System.Time.Monotonic (
     newClock,
     newClockWithDriver,
     clockGetTime,
+    clockDriverName,
 
     -- * Utilities
     delay,
@@ -70,6 +71,12 @@ clockGetTime (Clock clock ref) = do
             let t2 = t1 + systemClockDiffTime clock st2 st1
              in (ClockData t2 st2, t2)
     t2 `seq` return t2
+
+-- | Return a string identifying the time source, such as
+-- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or
+-- @\"GetTickCount\"@.
+clockDriverName :: Clock -> String
+clockDriverName (Clock clock _) = systemClockName clock
 
 -- | Variant of 'threadDelay' for 'DiffTime'.
 delay :: DiffTime -> IO ()

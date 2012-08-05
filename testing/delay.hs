@@ -3,6 +3,8 @@ import System.Time.Monotonic
 main :: IO ()
 main = do
     clock <- newClock
+    putStrLn $ "Using " ++ clockDriverName clock
+
     print =<< clockGetTime clock
 
     delay 0.5

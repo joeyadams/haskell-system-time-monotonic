@@ -8,6 +8,7 @@ import Control.Monad            (forever)
 main :: IO ()
 main = do
     clock <- newClock
+    putStrLn $ "Using " ++ clockDriverName clock
     _ <- forkOS $ forever $ clockGetTime clock
     _ <- forkOS $ forever $ clockGetTime clock
     _ <- forkOS $ forever $ clockGetTime clock

@@ -74,8 +74,9 @@ data SystemClock time = SystemClock
     , systemClockName     :: String
         -- ^ Label identifying this clock, like
         -- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or
-        -- @\"QueryPerformanceCounter\"@.  This label is used for the 'Show'
-        -- instances of 'SystemClock' and 'SomeSystemClock'.
+        -- @\"GetTickCount\"@.  This label is used for the 'Show'
+        -- instances of 'SystemClock' and 'SomeSystemClock', and for
+        -- 'System.Time.Monotonic.clockDriverName'.
     }
 
 instance Show (SystemClock time) where
