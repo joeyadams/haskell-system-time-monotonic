@@ -50,6 +50,9 @@ import Foreign.C
 -- | Existentially-quantified wrapper around 'SystemClock'
 data SomeSystemClock = forall time. SomeSystemClock (SystemClock time)
 
+instance Show SomeSystemClock where
+    show (SomeSystemClock sc) = "SomeSystemClock " ++ (show . systemClockName) sc
+
 data SystemClock time = SystemClock
     { systemClockGetTime  :: IO time
     , systemClockDiffTime :: time -> time -> DiffTime
@@ -67,8 +70,12 @@ data SystemClock time = SystemClock
     , systemClockName     :: String
         -- ^ Label identifying this clock, like
         -- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or
-        -- @\"QueryPerformanceCounter\"@.
+        -- @\"QueryPerformanceCounter\"@.  This label is used for the 'Show'
+        -- instances of 'SystemClock' and 'SomeSystemClock'.
     }
+
+instance Show (SystemClock time) where
+    show sc = "SystemClock " ++ (show . systemClockName) sc
 
 -- | Return a module used for accessing the system's monotonic clock.  The
 -- reason this is an 'IO' action, rather than simply a 'SystemClock' value, is
