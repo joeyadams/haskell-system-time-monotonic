@@ -51,7 +51,10 @@ import Foreign.C
 data SomeSystemClock = forall time. SomeSystemClock (SystemClock time)
 
 instance Show SomeSystemClock where
-    show (SomeSystemClock sc) = "SomeSystemClock " ++ (show . systemClockName) sc
+    showsPrec d (SomeSystemClock sc)
+        = showParen (d > 10)
+        $ showString "SomeSystemClock "
+        . showsPrec 11 (systemClockName sc)
 
 data SystemClock time = SystemClock
     { systemClockGetTime  :: IO time
@@ -75,7 +78,10 @@ data SystemClock time = SystemClock
     }
 
 instance Show (SystemClock time) where
-    show sc = "SystemClock " ++ (show . systemClockName) sc
+    showsPrec d sc
+        = showParen (d > 10)
+        $ showString "SystemClock "
+        . showsPrec 11 (systemClockName sc)
 
 -- | Return a module used for accessing the system's monotonic clock.  The
 -- reason this is an 'IO' action, rather than simply a 'SystemClock' value, is
