@@ -21,6 +21,7 @@ build-type:         Simple
 cabal-version:      >=1.8
 
 extra-source-files:
+    testing/clock.hs
     testing/delay.hs
     testing/diffCTimeSpec.hs
 
