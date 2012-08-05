@@ -5,23 +5,23 @@ main = do
     clock <- newClock
     print =<< clockGetTime clock
 
-    threadDelayMSec $ MSec 500
+    delay 0.5
     print =<< clockGetTime clock
 
     t0 <- clockGetTime clock
-    threadDelayMSec $ MSec 10
+    delay 0.01
     t1 <- clockGetTime clock
-    threadDelayMSec $ MSec 20
+    delay 0.02
     t2 <- clockGetTime clock
-    threadDelayMSec $ MSec 1
+    delay 0.001
     t3 <- clockGetTime clock
     print (t0, t1, t2, t3)
 
-    putStrLn "Waiting -1 milliseconds (should do nothing)"
-    threadDelayMSec $ MSec (-1)
+    putStrLn "Waiting -1 seconds (should do nothing)"
+    delay (-1)
 
     putStrLn "Waiting 105 seconds"
-    threadDelayMSec $ MSec 105000
+    delay 105
     print =<< clockGetTime clock
 
     putStrLn "Done."
