@@ -26,14 +26,11 @@ module System.Time.Monotonic.Direct (
     -- | The set of definitions below is platform-dependent.
 
 #if mingw32_HOST_OS
+    systemClock_QueryPerformanceCounter,
     systemClock_GetTickCount,
 #else
     systemClock_MONOTONIC,
-
-    -- ** Internal definitions
-    CTimeSpec(..),
-    diffCTimeSpec,
-    peekCTimeSpec,
+    CTimeSpec,
 #endif
 ) where
 
@@ -42,6 +39,7 @@ import Data.Time.Clock  (DiffTime)
 import Data.Word
 
 #if mingw32_HOST_OS
+import Data.Ratio ((%))
 #include <Windows.h>
 #else
 import Foreign
@@ -68,23 +66,50 @@ data SystemClock time = SystemClock
         -- simultaneously, possibly resulting in @new@ being before @old@.
     , systemClockName     :: String
         -- ^ Label identifying this clock, like
-        -- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or @\"GetTickCount\"@.
+        -- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or
+        -- @\"QueryPerformanceCounter\"@.
     }
 
 -- | Return a module used for accessing the system's monotonic clock.  The
 -- reason this is an 'IO' action, rather than simply a 'SystemClock' value, is
 -- that the implementation may need to make a system call to determine what
--- monotonic time source to use.
+-- monotonic time source to use, and how to use it.
 getSystemClock :: IO SomeSystemClock
 #if mingw32_HOST_OS
-getSystemClock =
-    return $ SomeSystemClock systemClock_GetTickCount
+getSystemClock = do
+    m <- systemClock_QueryPerformanceCounter
+    case m of
+        Just qpc -> return $ SomeSystemClock qpc
+        Nothing  -> return $ SomeSystemClock systemClock_GetTickCount
 #else
 getSystemClock =
     return $ SomeSystemClock systemClock_MONOTONIC
 #endif
 
 #if mingw32_HOST_OS
+
+qpcDiffTime :: Int64 -> Int64 -> Int64 -> DiffTime
+qpcDiffTime freq new old =
+    fromRational $ fromIntegral (new - old) % freq
+
+systemClock_QueryPerformanceCounter :: IO (Maybe (SystemClock Int64))
+systemClock_QueryPerformanceCounter = do
+    m <- callQP c_QueryPerformanceFrequency
+    case m of
+        Nothing   -> return Nothing
+        Just 0    -> return Nothing -- Shouldn't happen; just a safeguard to
+                                    -- prevent zero denominator in 'qpcDiffTime'.
+        Just freq -> return $ Just SystemClock
+            { systemClockGetTime = do
+                m <- callQP c_QueryPerformanceCounter
+                case m of
+                    Just t  -> return t
+                    Nothing -> fail "QueryPerformanceCounter failed,\
+                                    \ even though QueryPerformanceFrequency\
+                                    \ succeeded earlier"
+            , systemClockDiffTime = qpcDiffTime freq
+            , systemClockName     = "QueryPerformanceCounter"
+            }
 
 systemClock_GetTickCount :: SystemClock Word32
 systemClock_GetTickCount =
@@ -95,6 +120,24 @@ systemClock_GetTickCount =
                                     --     to handle wraparound properly.
     , systemClockName     = "GetTickCount"
     }
+
+callQP :: QPFunc -> IO (Maybe Int64)
+callQP qpfunc =
+    allocaBytes #{size LARGE_INTEGER} $ \ptr -> do
+        ok <- qpfunc ptr
+        if ok /= 0
+            then do
+                n <- #{peek LARGE_INTEGER, QuadPart} ptr
+                return (Just n)
+            else return Nothing
+
+type QPFunc = Ptr Int64 -> IO #{type BOOL}
+
+foreign import stdcall "Windows.h QueryPerformanceFrequency"
+    c_QueryPerformanceFrequency :: QPFunc
+
+foreign import stdcall "Windows.h QueryPerformanceCounter"
+    c_QueryPerformanceCounter :: QPFunc
 
 foreign import stdcall "Windows.h GetTickCount"
     c_GetTickCount :: IO #{type DWORD}
