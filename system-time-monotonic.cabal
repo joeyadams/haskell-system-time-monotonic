@@ -6,8 +6,9 @@ description:
     intended to be portable and reliable, but does not (necessarily) provide
     high-resolution timing.
     .
-        * On Windows, this uses @QueryPerformanceCounter@.  If that is not
-          available, it falls back to @GetTickCount@.
+        * On Windows, this uses @GetTickCount64@, but falls back to
+          @GetTickCount@ if it is not available.  @GetTickCount64@ was
+          introduced in Windows Vista and Windows Server 2008.
     .
         * On Linux, this uses @clock_gettime@ with @CLOCK_MONOTONIC@.
 homepage:           https://github.com/joeyadams/haskell-system-time-monotonic
@@ -38,6 +39,10 @@ library
     build-tools: hsc2hs
 
     ghc-options: -Wall -fwarn-tabs
+
+    if os(windows) {
+        c-sources: cbits/dll.c
+    }
 
     build-depends   : base == 4.*
                     , time

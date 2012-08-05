@@ -28,6 +28,7 @@ module System.Time.Monotonic.Direct (
 #if mingw32_HOST_OS
     systemClock_QueryPerformanceCounter,
     systemClock_GetTickCount,
+    systemClock_GetTickCount64,
 #else
     systemClock_MONOTONIC,
     CTimeSpec,
@@ -90,16 +91,52 @@ instance Show (SystemClock time) where
 getSystemClock :: IO SomeSystemClock
 #if mingw32_HOST_OS
 getSystemClock = do
-    m <- systemClock_QueryPerformanceCounter
+    m <- systemClock_GetTickCount64
     case m of
-        Just qpc -> return $ SomeSystemClock qpc
-        Nothing  -> return $ SomeSystemClock systemClock_GetTickCount
+        Just gtc64 -> return $ SomeSystemClock gtc64
+        Nothing    -> return $ SomeSystemClock systemClock_GetTickCount
 #else
 getSystemClock =
     return $ SomeSystemClock systemClock_MONOTONIC
 #endif
 
 #if mingw32_HOST_OS
+
+systemClock_GetTickCount :: SystemClock Word32
+systemClock_GetTickCount =
+    SystemClock
+    { systemClockGetTime  = c_GetTickCount
+    , systemClockDiffTime = \a b -> fromIntegral (a - b :: Word32) / 1000
+                                    -- NB: Do the subtraction modulo 2^32,
+                                    --     to handle wraparound properly.
+    , systemClockName     = "GetTickCount"
+    }
+
+foreign import stdcall "Windows.h GetTickCount"
+    c_GetTickCount :: IO #{type DWORD}
+
+systemClock_GetTickCount64 :: IO (Maybe (SystemClock Word64))
+systemClock_GetTickCount64 = do
+    fun <- system_time_monotonic_load_GetTickCount64
+    if fun == nullFunPtr
+        then return Nothing
+        else return $ Just $ clock $ mkGetTickCount64 fun
+  where
+    clock getTickCount64 =
+        SystemClock
+        { systemClockGetTime  = getTickCount64
+        , systemClockDiffTime = \a b -> fromIntegral (a - b :: Word64) / 1000
+        , systemClockName     = "GetTickCount64"
+        }
+
+type C_GetTickCount64 = IO #{type ULONGLONG}
+
+-- Defined in cbits/dll.c
+foreign import ccall
+    system_time_monotonic_load_GetTickCount64 :: IO (FunPtr C_GetTickCount64)
+
+foreign import stdcall "dynamic"
+    mkGetTickCount64 :: FunPtr C_GetTickCount64 -> C_GetTickCount64
 
 qpcDiffTime :: Int64 -> Int64 -> Int64 -> DiffTime
 qpcDiffTime freq new old =
@@ -124,16 +161,6 @@ systemClock_QueryPerformanceCounter = do
             , systemClockName     = "QueryPerformanceCounter"
             }
 
-systemClock_GetTickCount :: SystemClock Word32
-systemClock_GetTickCount =
-    SystemClock
-    { systemClockGetTime  = c_GetTickCount
-    , systemClockDiffTime = \a b -> fromIntegral (a - b :: Word32) / 1000
-                                    -- NB: Do the subtraction modulo 2^32,
-                                    --     to handle wraparound properly.
-    , systemClockName     = "GetTickCount"
-    }
-
 callQP :: QPFunc -> IO (Maybe Int64)
 callQP qpfunc =
     allocaBytes #{size LARGE_INTEGER} $ \ptr -> do
@@ -151,9 +178,6 @@ foreign import stdcall "Windows.h QueryPerformanceFrequency"
 
 foreign import stdcall "Windows.h QueryPerformanceCounter"
     c_QueryPerformanceCounter :: QPFunc
-
-foreign import stdcall "Windows.h GetTickCount"
-    c_GetTickCount :: IO #{type DWORD}
 
 #else
 
