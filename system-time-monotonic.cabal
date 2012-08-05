@@ -22,7 +22,6 @@ cabal-version:      >=1.8
 
 extra-source-files:
     testing/diffCTimeSpec.hs
-    testing/nudge-gc.hs
     testing/threadDelayMSec.hs
 
 source-repository head
