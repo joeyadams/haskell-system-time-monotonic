@@ -103,6 +103,11 @@ getSystemClock =
 
 #if mingw32_HOST_OS
 
+-- | Use @GetTickCount@.  This is the default on Windows when @GetTickCount64@
+-- is not available.
+--
+-- @GetTickCount@ has a 49.7 day wraparound, due to the type of the return
+-- value (milliseconds as an unsigned 32-bit integer).
 systemClock_GetTickCount :: SystemClock Word32
 systemClock_GetTickCount =
     SystemClock
@@ -116,6 +121,9 @@ systemClock_GetTickCount =
 foreign import stdcall "Windows.h GetTickCount"
     c_GetTickCount :: IO #{type DWORD}
 
+-- | Uses @GetTickCount64@, which was introduced in Windows Vista and
+-- Windows Server 2008.  This function tests, at runtime, if @GetTickCount64@
+-- is available.
 systemClock_GetTickCount64 :: IO (Maybe (SystemClock Word64))
 systemClock_GetTickCount64 = do
     fun <- system_time_monotonic_load_GetTickCount64
@@ -143,6 +151,9 @@ qpcDiffTime :: Int64 -> Int64 -> Int64 -> DiffTime
 qpcDiffTime freq new old =
     fromRational $ fromIntegral (new - old) % fromIntegral freq
 
+-- | Uses @QueryPerformanceCounter@.  This is not the default because it is
+-- less reliable in the long run than @GetTickCount@, and it stops when the
+-- computer is put in suspend mode.
 systemClock_QueryPerformanceCounter :: IO (Maybe (SystemClock Int64))
 systemClock_QueryPerformanceCounter = do
     mfreq <- callQP c_QueryPerformanceFrequency
@@ -202,7 +213,10 @@ peekCTimeSpec ptr = do
                      , tv_nsec = nsec
                      }
 
--- | @clock_gettime(CLOCK_MONOTONIC)@
+-- | Uses @clock_gettime@ with @CLOCK_MONOTONIC@.
+--
+-- /Warning:/ on Linux, this clock stops when the computer is suspended.
+-- See <http://lwn.net/Articles/434239/>.
 systemClock_MONOTONIC :: SystemClock CTimeSpec
 systemClock_MONOTONIC =
     SystemClock
@@ -219,7 +233,7 @@ systemClock_MONOTONIC =
 -- systemClock_MONOTONIC_RAW =
 --     SystemClock
 --     { systemClockGetTime  = clock_gettime #{const CLOCK_MONOTONIC_RAW}
---     , systemClockDiffTime = diffCTimeSpec -- TODO
+--     , systemClockDiffTime = diffCTimeSpec
 --     , systemClockName     = "clock_gettime(CLOCK_MONOTONIC_RAW)"
 --     }
 
