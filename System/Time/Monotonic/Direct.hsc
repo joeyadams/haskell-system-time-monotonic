@@ -16,7 +16,7 @@
 -- 'System.Time.Monotonic.clockGetTime' is called.  The only way to get a
 -- wraparound issue with the higher-level API is to call
 -- 'System.Time.Monotonic.clockGetTime' very seldomly (e.g. less than once
--- every 49.7 days, if @GetTickCount@ is being used).
+-- every 24.8 days, if @GetTickCount@ is being used).
 module System.Time.Monotonic.Direct (
     getSystemClock,
     SomeSystemClock(..),
@@ -35,6 +35,7 @@ module System.Time.Monotonic.Direct (
 #endif
 ) where
 
+import Data.Bits        (isSigned)
 import Data.Int
 import Data.Time.Clock  (DiffTime)
 import Data.Word
@@ -63,14 +64,10 @@ data SystemClock time = SystemClock
         -- ^ @systemClockDiffTime new old@ returns the amount of time that has
         -- elapsed between two calls to @systemClockGetTime@.
         --
-        -- This function should obey the following law:
-        --
-        -- >systemClockDiffTime new old == -(systemClockDiffTime old new)
-        --
-        -- That is, if @new < old@, @systemClockDiffTime@ should not return
-        -- something weird because it thinks overflow occurred.  Two threads
-        -- using a single 'System.Time.Monotonic.Clock' might ask for the time
-        -- simultaneously, possibly resulting in @new@ being before @old@.
+        -- This function should handle wraparound properly.  Also, bear in mind
+        -- that @new@ may be earlier than @old@.  This can happen if multiple
+        -- threads are accessing a 'System.Time.Monotonic.Clock'
+        -- simultaneously.
     , systemClockName     :: String
         -- ^ Label identifying this clock, like
         -- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or
@@ -103,6 +100,16 @@ getSystemClock =
 
 #if mingw32_HOST_OS
 
+diffMSec32 :: Word32 -> Word32 -> DiffTime
+diffMSec32 a b = fromIntegral (fromIntegral (a - b :: Word32) :: Int32) / 1000
+    -- Do the subtraction modulo 2^32, to handle wraparound properly.
+    -- However, convert it from unsigned to signed, to avoid
+    -- a bogus result if a is earlier than b.
+
+diffMSec64 :: Word64 -> Word64 -> DiffTime
+diffMSec64 a b = fromIntegral (fromIntegral (a - b :: Word64) :: Int64) / 1000
+
+
 -- | Use @GetTickCount@.  This is the default on Windows when @GetTickCount64@
 -- is not available.
 --
@@ -112,9 +119,7 @@ systemClock_GetTickCount :: SystemClock Word32
 systemClock_GetTickCount =
     SystemClock
     { systemClockGetTime  = c_GetTickCount
-    , systemClockDiffTime = \a b -> fromIntegral (a - b :: Word32) / 1000
-                                    -- NB: Do the subtraction modulo 2^32,
-                                    --     to handle wraparound properly.
+    , systemClockDiffTime = diffMSec32
     , systemClockName     = "GetTickCount"
     }
 
@@ -134,7 +139,7 @@ systemClock_GetTickCount64 = do
     clock getTickCount64 =
         SystemClock
         { systemClockGetTime  = getTickCount64
-        , systemClockDiffTime = \a b -> fromIntegral (a - b :: Word64) / 1000
+        , systemClockDiffTime = diffMSec64
         , systemClockName     = "GetTickCount64"
         }
 
@@ -193,8 +198,10 @@ foreign import stdcall "Windows.h QueryPerformanceCounter"
 
 #else
 
+type Time_t = #{type time_t}
+
 data CTimeSpec = CTimeSpec
-    { tv_sec    :: !(#{type time_t})
+    { tv_sec    :: !Time_t
         -- ^ seconds
     , tv_nsec   :: !CLong
         -- ^ nanoseconds.  1 second = 10^9 nanoseconds
@@ -202,8 +209,16 @@ data CTimeSpec = CTimeSpec
 
 diffCTimeSpec :: CTimeSpec -> CTimeSpec -> DiffTime
 diffCTimeSpec a b
-  = fromIntegral (tv_sec a - tv_sec b)
+  = diffCTime (tv_sec a) (tv_sec b)
   + fromIntegral (tv_nsec a - tv_nsec b) / 1000000000
+
+diffCTime :: Time_t -> Time_t -> DiffTime
+diffCTime a b
+    | isSigned a = fromIntegral (a - b)
+    | otherwise  = error "System.Time.Monotonic.Direct: time_t is unsigned"
+        -- time_t is supposed to be signed on POSIX systems.
+        -- If a is earlier than b, unsigned subtraction will produce an
+        -- enormous result.
 
 peekCTimeSpec :: Ptr CTimeSpec -> IO CTimeSpec
 peekCTimeSpec ptr = do
