@@ -9,8 +9,10 @@ module System.Time.Monotonic (
     -- * Clock
     Clock,
     newClock,
-    newClockWithDriver,
     clockGetTime,
+
+    -- ** Drivers
+    newClockWithDriver,
     clockDriverName,
 
     -- * Utilities
@@ -22,9 +24,6 @@ import System.Time.Monotonic.Direct
 import Control.Concurrent   (threadDelay)
 import Data.IORef
 import Data.Time.Clock      (DiffTime)
-
-------------------------------------------------------------------------
--- Clock
 
 data Clock = forall time. Clock !(SystemClock time) !(IORef (ClockData time))
 
@@ -51,16 +50,6 @@ data ClockData time = ClockData !DiffTime !time
 newClock :: IO Clock
 newClock = newClockWithDriver =<< getSystemClock
 
--- | Variant of 'newClock' that uses the given driver.  This can be used if you
--- want to use a different time source than the default.
---
--- @'newClock' = 'newClockWithDriver' =<< 'getSystemClock'@
-newClockWithDriver :: SomeSystemClock -> IO Clock
-newClockWithDriver (SomeSystemClock clock) = do
-    st <- systemClockGetTime clock
-    ref <- newIORef (ClockData 0 st)
-    return (Clock clock ref)
-
 -- | Return the amount of time that has elapsed since the clock was created
 -- with 'newClock'.
 clockGetTime :: Clock -> IO DiffTime
@@ -71,6 +60,16 @@ clockGetTime (Clock clock ref) = do
             let t2 = t1 + systemClockDiffTime clock st2 st1
              in (ClockData t2 st2, t2)
     t2 `seq` return t2
+
+-- | Variant of 'newClock' that uses the given driver.  This can be used if you
+-- want to use a different time source than the default.
+--
+-- @'newClock' = 'newClockWithDriver' =<< 'getSystemClock'@
+newClockWithDriver :: SomeSystemClock -> IO Clock
+newClockWithDriver (SomeSystemClock clock) = do
+    st <- systemClockGetTime clock
+    ref <- newIORef (ClockData 0 st)
+    return (Clock clock ref)
 
 -- | Return a string identifying the time source, such as
 -- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or
