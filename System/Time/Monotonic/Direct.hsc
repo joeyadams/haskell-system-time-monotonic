@@ -206,6 +206,7 @@ data CTimeSpec = CTimeSpec
     , tv_nsec   :: !CLong
         -- ^ nanoseconds.  1 second = 10^9 nanoseconds
     }
+    deriving Show
 
 diffCTimeSpec :: CTimeSpec -> CTimeSpec -> DiffTime
 diffCTimeSpec a b
