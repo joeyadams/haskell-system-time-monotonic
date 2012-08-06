@@ -4,6 +4,20 @@
 -- License:     BSD3
 -- Maintainer:  joeyadams3.14159@gmail.com
 -- Portability: Tested on Linux and Windows.
+--
+-- This module provides a platform-independent API for using the system's
+-- monotonic clock.
+--
+-- Known issues:
+--
+--  * On Windows XP, this uses @GetTickCount@, which has a 49.7 day wraparound.
+--    'Clock' works around this problem, but the workaround only works if
+--    'clockGetTime' is called at least once every 24.8 days.
+--
+--  * On Linux, this uses @clock_gettime@ with @CLOCK_MONOTONIC@,
+--    which (unfortunately) stops when the computer is suspended.  Thus,
+--    'clockGetTime' will not include time spent sleeping.  Do not rely on this
+--    behavior, as it may be fixed in a future version of this library.
 {-# LANGUAGE ExistentialQuantification #-}
 module System.Time.Monotonic (
     -- * Clock

@@ -3,12 +3,15 @@ version:            0.1
 synopsis:           Simple library for using the system's monotonic clock
 description:
     Simple library for using the system's monotonic clock.  This library is
-    intended to be portable and reliable, but does not (necessarily) provide
-    high-resolution timing.
+    geared toward programs that need to run for long periods of time.  It does
+    not (necessarily) provide high-resolution timing.
     .
         * On Windows, this uses @GetTickCount64@, but falls back to
           @GetTickCount@ if it is not available.  @GetTickCount64@ was
           introduced in Windows Vista and Windows Server 2008.
+          Support for @QueryPerformanceCounter@ is also available, but is not
+          used by default, as it is less accurate in the long run than
+          @GetTickCount@.
     .
         * On Linux, this uses @clock_gettime@ with @CLOCK_MONOTONIC@.
 homepage:           https://github.com/joeyadams/haskell-system-time-monotonic
