@@ -50,7 +50,8 @@ import Foreign.C
 #endif
 
 -- | Existentially-quantified wrapper around 'SystemClock'
-data SomeSystemClock = forall time. SomeSystemClock (SystemClock time)
+data SomeSystemClock = forall time cumtime.
+                       SomeSystemClock (SystemClock time cumtime)
 
 instance Show SomeSystemClock where
     showsPrec d (SomeSystemClock sc)
@@ -58,17 +59,44 @@ instance Show SomeSystemClock where
         $ showString "SomeSystemClock "
         . showsPrec 11 (systemClockName sc)
 
-data SystemClock time = SystemClock
-    { systemClockGetTime  :: IO time
-    , systemClockDiffTime :: time -> time -> DiffTime
+-- | A 'SystemClock' is a driver module used by 'System.Time.Monotonic.Clock'
+-- to access a particular implementation of monotonic time support.
+--
+--  * @time@: Type of value returned by the system's time-getting function.
+--
+--  * @cumtime@: Type for accumulating differences between consecutive(-ish)
+--    calls to 'systemClockGetTime', in case @time@ wraps around.
+--    The reason we don't simply use 'DiffTime' is this: if the implementation
+--    has to divide the result by a clock frequency, it could end up with a
+--    number that is not an integral number of picoseconds.  Truncating to
+--    'DiffTime' would lose precision, and that precision loss could add up, at
+--    least in theory.
+data SystemClock time cumtime = SystemClock
+    { systemClockGetTime     :: IO time
+    , systemClockDiffTime    :: time -> time -> cumtime
         -- ^ @systemClockDiffTime new old@ returns the amount of time that has
         -- elapsed between two calls to @systemClockGetTime@.
+        --
+        -- >systemClockDiffTime new old = new - old
         --
         -- This function should handle wraparound properly.  Also, bear in mind
         -- that @new@ may be earlier than @old@.  This can happen if multiple
         -- threads are accessing a 'System.Time.Monotonic.Clock'
         -- simultaneously.
-    , systemClockName     :: String
+        --
+        -- Lastly, @systemClockDiffTime@ should not truncate precision in
+        -- conversion to cumtime.  Otherwise, repeated calls to
+        -- 'System.Time.Monotonic.clockGetTime' could degrade accuracy, due to
+        -- lost precision adding up.
+    , systemClockZeroCumTime :: cumtime
+        -- ^ The number @0@.
+    , systemClockAddCumTime  :: cumtime -> cumtime -> cumtime
+        -- ^ Add two @cumtime@ values.  This should not overflow or lose
+        -- precision.
+    , systemClockCumToDiff   :: cumtime -> DiffTime
+        -- ^ Convert a cumulative total of 'systemClockDiffTime' results to
+        -- 'DiffTime'.  This may truncate precision if it needs to.
+    , systemClockName        :: String
         -- ^ Label identifying this clock, like
         -- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or
         -- @\"GetTickCount\"@.  This label is used for the 'Show'
@@ -76,7 +104,7 @@ data SystemClock time = SystemClock
         -- 'System.Time.Monotonic.clockDriverName'.
     }
 
-instance Show (SystemClock time) where
+instance Show (SystemClock time cumtime) where
     showsPrec d sc
         = showParen (d > 10)
         $ showString "SystemClock "
@@ -233,12 +261,15 @@ peekCTimeSpec ptr = do
 --
 -- /Warning:/ on Linux, this clock stops when the computer is suspended.
 -- See <http://lwn.net/Articles/434239/>.
-systemClock_MONOTONIC :: SystemClock CTimeSpec
+systemClock_MONOTONIC :: SystemClock CTimeSpec DiffTime
 systemClock_MONOTONIC =
     SystemClock
-    { systemClockGetTime  = clock_gettime #{const CLOCK_MONOTONIC}
-    , systemClockDiffTime = diffCTimeSpec
-    , systemClockName     = "clock_gettime(CLOCK_MONOTONIC)"
+    { systemClockGetTime     = clock_gettime #{const CLOCK_MONOTONIC}
+    , systemClockDiffTime    = diffCTimeSpec
+    , systemClockZeroCumTime = 0
+    , systemClockAddCumTime  = (+)
+    , systemClockCumToDiff   = id
+    , systemClockName        = "clock_gettime(CLOCK_MONOTONIC)"
     }
 
 -- CLOCK_MONOTONIC_RAW is more reliable, but requires
@@ -248,9 +279,11 @@ systemClock_MONOTONIC =
 -- systemClock_MONOTONIC_RAW :: SystemClock CTimeSpec
 -- systemClock_MONOTONIC_RAW =
 --     SystemClock
---     { systemClockGetTime  = clock_gettime #{const CLOCK_MONOTONIC_RAW}
---     , systemClockDiffTime = diffCTimeSpec
---     , systemClockName     = "clock_gettime(CLOCK_MONOTONIC_RAW)"
+--     { systemClockGetTime    = clock_gettime #{const CLOCK_MONOTONIC_RAW}
+--     , systemClockDiffTime   = diffCTimeSpec
+--     , systemClockAddCumTime = (+)
+--     , systemClockCumToDiff  = id
+--     , systemClockName       = "clock_gettime(CLOCK_MONOTONIC_RAW)"
 --     }
 
 clock_gettime :: #{type clockid_t} -> IO CTimeSpec

@@ -39,7 +39,8 @@ import Control.Concurrent   (threadDelay)
 import Data.IORef
 import Data.Time.Clock      (DiffTime)
 
-data Clock = forall time. Clock !(SystemClock time) !(IORef (ClockData time))
+data Clock = forall time cumtime.
+             Clock !(SystemClock time cumtime) !(IORef (ClockData time cumtime))
 
 -- We can't have the Eq instance because the time type is existentially
 -- quantified, meaning the equality below would have to compare two IORefs of
@@ -49,15 +50,15 @@ data Clock = forall time. Clock !(SystemClock time) !(IORef (ClockData time))
 -- instance Eq Clock where
 --     Clock _ a == Clock _ b = a == b
 
--- | The externally reported time, paired with the return value of
--- 'systemClockGetTime' at a given point in time.
+-- | The cumulative amount of time since 'newClock' was called, paired with the
+-- return value of 'systemClockGetTime', at a given point in time.
 --
--- The disposition between the 'DiffTime' and the @time@ is set when 'newClock'
+-- The disposition between the @cumtime@ and the @time@ is set when 'newClock'
 -- is called, and remains constant for the lifetime of the 'Clock'.
 -- 'clockGetTime' merely increments both quantities by the same amount.
--- Therefore, barring precision loss, calling 'clockGetTime' frequently should
--- not degrade the accuracy of the clock.
-data ClockData time = ClockData !DiffTime !time
+-- Therefore, calling 'clockGetTime' frequently should not degrade the accuracy
+-- of the clock.
+data ClockData time cumtime = ClockData !cumtime !time
 
 -- | Create a new 'Clock'.  The result of 'clockGetTime' is based on the time
 -- 'newClock' was called.
@@ -71,9 +72,13 @@ clockGetTime (Clock clock ref) = do
     st2 <- systemClockGetTime clock
     t2 <- atomicModifyIORef ref $
         \(ClockData t1 st1) ->
-            let t2 = t1 + systemClockDiffTime clock st2 st1
+            let t2 = t1 `plus` (st2 `minus` st1)
              in (ClockData t2 st2, t2)
-    t2 `seq` return t2
+    let t2d = systemClockCumToDiff clock t2
+    t2 `seq` t2d `seq` return t2d
+  where
+    plus  = systemClockAddCumTime clock
+    minus = systemClockDiffTime   clock
 
 -- | Variant of 'newClock' that uses the given driver.  This can be used if you
 -- want to use a different time source than the default.
@@ -82,7 +87,7 @@ clockGetTime (Clock clock ref) = do
 newClockWithDriver :: SomeSystemClock -> IO Clock
 newClockWithDriver (SomeSystemClock clock) = do
     st <- systemClockGetTime clock
-    ref <- newIORef (ClockData 0 st)
+    ref <- newIORef (ClockData (systemClockZeroCumTime clock) st)
     return (Clock clock ref)
 
 -- | Return a string identifying the time source, such as
