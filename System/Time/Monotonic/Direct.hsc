@@ -26,9 +26,9 @@ module System.Time.Monotonic.Direct (
     -- | The set of definitions below is platform-dependent.
 
 #if mingw32_HOST_OS
-    systemClock_QueryPerformanceCounter,
     systemClock_GetTickCount,
     systemClock_GetTickCount64,
+    systemClock_QueryPerformanceCounter,
 #else
     systemClock_MONOTONIC,
     CTimeSpec,
