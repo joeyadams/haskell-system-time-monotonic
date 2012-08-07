@@ -6,6 +6,8 @@ test :: DiffTime -> Word32 -> Word32 -> IO Bool
 test expected new old =
     return $ diffMSec32 new old == expected
           && diffMSec32 old new == -expected
+  where
+    diffMSec32 = systemClockDiffTime systemClock_GetTickCount
 
 main :: IO ()
 main = do

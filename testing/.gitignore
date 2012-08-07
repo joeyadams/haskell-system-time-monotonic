@@ -1,6 +1,7 @@
 *.exe
 *.hi
 *.o
+.shake.database
 benchmark
 bombard
 clock

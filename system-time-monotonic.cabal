@@ -25,6 +25,7 @@ build-type:         Simple
 cabal-version:      >=1.8
 
 extra-source-files:
+    testing/make.hs
     testing/benchmark.hs
     testing/bombard.hs
     testing/clock.hs
