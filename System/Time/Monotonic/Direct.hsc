@@ -193,8 +193,9 @@ qpcCumToDiff :: Int64 -> Integer -> DiffTime
 qpcCumToDiff freq cum = fromRational (cum % fromIntegral freq)
 
 -- | Uses @QueryPerformanceCounter@.  This is not the default because it is
--- less reliable in the long run than @GetTickCount@, and it stops when the
--- computer is put in suspend mode.
+-- less reliable in the long run than @GetTickCount@.  On my laptop, it skips
+-- ahead roughly 2 seconds when the computer goes into sleep mode, but counts
+-- time spent sleeping.
 systemClock_QueryPerformanceCounter :: IO (Maybe (SystemClock Int64 Integer))
 systemClock_QueryPerformanceCounter = do
     mfreq <- callQP c_QueryPerformanceFrequency
