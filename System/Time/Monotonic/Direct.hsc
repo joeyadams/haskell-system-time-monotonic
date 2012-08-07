@@ -143,12 +143,15 @@ diffMSec64 a b = fromIntegral (fromIntegral (a - b :: Word64) :: Int64) / 1000
 --
 -- @GetTickCount@ has a 49.7 day wraparound, due to the type of the return
 -- value (milliseconds as an unsigned 32-bit integer).
-systemClock_GetTickCount :: SystemClock Word32
+systemClock_GetTickCount :: SystemClock Word32 DiffTime
 systemClock_GetTickCount =
     SystemClock
-    { systemClockGetTime  = c_GetTickCount
-    , systemClockDiffTime = diffMSec32
-    , systemClockName     = "GetTickCount"
+    { systemClockGetTime     = c_GetTickCount
+    , systemClockDiffTime    = diffMSec32
+    , systemClockZeroCumTime = 0
+    , systemClockAddCumTime  = (+)
+    , systemClockCumToDiff   = id
+    , systemClockName        = "GetTickCount"
     }
 
 foreign import stdcall "Windows.h GetTickCount"
@@ -157,7 +160,7 @@ foreign import stdcall "Windows.h GetTickCount"
 -- | Uses @GetTickCount64@, which was introduced in Windows Vista and
 -- Windows Server 2008.  This function tests, at runtime, if @GetTickCount64@
 -- is available.
-systemClock_GetTickCount64 :: IO (Maybe (SystemClock Word64))
+systemClock_GetTickCount64 :: IO (Maybe (SystemClock Word64 DiffTime))
 systemClock_GetTickCount64 = do
     fun <- system_time_monotonic_load_GetTickCount64
     if fun == nullFunPtr
@@ -166,9 +169,12 @@ systemClock_GetTickCount64 = do
   where
     clock getTickCount64 =
         SystemClock
-        { systemClockGetTime  = getTickCount64
-        , systemClockDiffTime = diffMSec64
-        , systemClockName     = "GetTickCount64"
+        { systemClockGetTime     = getTickCount64
+        , systemClockDiffTime    = diffMSec64
+        , systemClockZeroCumTime = 0
+        , systemClockAddCumTime  = (+)
+        , systemClockCumToDiff   = id
+        , systemClockName        = "GetTickCount64"
         }
 
 type C_GetTickCount64 = IO #{type ULONGLONG}
@@ -180,14 +186,16 @@ foreign import ccall
 foreign import stdcall "dynamic"
     mkGetTickCount64 :: FunPtr C_GetTickCount64 -> C_GetTickCount64
 
-qpcDiffTime :: Int64 -> Int64 -> Int64 -> DiffTime
-qpcDiffTime freq new old =
-    fromRational $ fromIntegral (new - old) % fromIntegral freq
+qpcDiffTime :: Int64 -> Int64 -> Integer
+qpcDiffTime new old = fromIntegral (new - old)
+
+qpcCumToDiff :: Int64 -> Integer -> DiffTime
+qpcCumToDiff freq cum = fromRational (cum % fromIntegral freq)
 
 -- | Uses @QueryPerformanceCounter@.  This is not the default because it is
 -- less reliable in the long run than @GetTickCount@, and it stops when the
 -- computer is put in suspend mode.
-systemClock_QueryPerformanceCounter :: IO (Maybe (SystemClock Int64))
+systemClock_QueryPerformanceCounter :: IO (Maybe (SystemClock Int64 Integer))
 systemClock_QueryPerformanceCounter = do
     mfreq <- callQP c_QueryPerformanceFrequency
     case mfreq of
@@ -202,8 +210,11 @@ systemClock_QueryPerformanceCounter = do
                     Nothing -> fail "QueryPerformanceCounter failed,\
                                     \ even though QueryPerformanceFrequency\
                                     \ succeeded earlier"
-            , systemClockDiffTime = qpcDiffTime freq
-            , systemClockName     = "QueryPerformanceCounter"
+            , systemClockDiffTime    = qpcDiffTime
+            , systemClockZeroCumTime = 0
+            , systemClockAddCumTime  = (+)
+            , systemClockCumToDiff   = qpcCumToDiff freq
+            , systemClockName        = "QueryPerformanceCounter"
             }
 
 callQP :: QPFunc -> IO (Maybe Int64)
