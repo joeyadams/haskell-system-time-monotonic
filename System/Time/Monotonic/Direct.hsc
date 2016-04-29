@@ -34,6 +34,9 @@ module System.Time.Monotonic.Direct (
 #if defined(CLOCK_BOOTTIME)
     systemClock_BOOTTIME,
 #endif
+#if defined(CLOCK_MONOTONIC_RAW)
+    systemClock_MONOTONIC_RAW,
+#endif
     systemClock_MONOTONIC,
     CTimeSpec,
 #endif
@@ -305,19 +308,23 @@ systemClock_BOOTTIME =
     }
 #endif
 
--- CLOCK_MONOTONIC_RAW is more reliable, but requires
--- a recent kernel and glibc.
+#if defined(CLOCK_MONOTONIC_RAW)
+-- | Uses @clock_gettime@ with @CLOCK_MONOTONIC_RAW@.
 --
--- -- | @clock_gettime(CLOCK_MONOTONIC_RAW)@
--- systemClock_MONOTONIC_RAW :: SystemClock CTimeSpec
--- systemClock_MONOTONIC_RAW =
---     SystemClock
---     { systemClockGetTime    = clock_gettime #{const CLOCK_MONOTONIC_RAW}
---     , systemClockDiffTime   = diffCTimeSpec
---     , systemClockAddCumTime = (+)
---     , systemClockCumToDiff  = id
---     , systemClockName       = "clock_gettime(CLOCK_MONOTONIC_RAW)"
---     }
+-- CLOCK_MONOTONIC_RAW is more reliable; according to @man 2 clock_gettime@, it
+-- is not subject to "NTP adjustments or [..] adjtime(3)". However, like
+-- @CLOCK_MONOTONIC@ it stops when the computer is suspended.
+systemClock_MONOTONIC_RAW :: SystemClock CTimeSpec DiffTime
+systemClock_MONOTONIC_RAW =
+    SystemClock
+    { systemClockGetTime     = clock_gettime #{const CLOCK_MONOTONIC_RAW}
+    , systemClockDiffTime    = diffCTimeSpec
+    , systemClockZeroCumTime = 0
+    , systemClockAddCumTime  = (+)
+    , systemClockCumToDiff   = id
+    , systemClockName        = "clock_gettime(CLOCK_MONOTONIC_RAW)"
+    }
+#endif
 
 clock_gettime :: #{type clockid_t} -> IO CTimeSpec
 clock_gettime clk_id =
