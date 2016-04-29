@@ -17,6 +17,9 @@
 --  * On Linux, this uses @clock_gettime@ with @CLOCK_BOOTTIME@. For versions
 --    before 2.6.39, this is not available so we use @CLOCK_MONOTONIC@ instead,
 --    which (unfortunately) stops when the computer is suspended.
+--
+--  * On other POSIX systems, we use @CLOCK_MONOTONIC@ which /should/ in theory
+--    work as @CLOCK_BOOTTIME@ does in Linux, but we haven't yet tested this.
 {-# LANGUAGE ExistentialQuantification #-}
 module System.Time.Monotonic (
     -- * Clock

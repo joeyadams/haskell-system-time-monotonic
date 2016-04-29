@@ -15,6 +15,9 @@ description:
     .
         * On Linux, this uses @clock_gettime@ with @CLOCK_BOOTTIME@.
     .
+        * On other POSIX systems, or if @CLOCK_BOOTTIME@ is otherwise
+          unavailable, this uses @clock_gettime@ with @CLOCK_MONOTONIC@.
+    .
     Release history:
     .
     [0.2] Update driver API (@SystemClock@) to prevent cumulative precision loss.
