@@ -13,7 +13,7 @@ description:
           used by default, as it is less accurate in the long run than
           @GetTickCount@.
     .
-        * On Linux, this uses @clock_gettime@ with @CLOCK_MONOTONIC@.
+        * On Linux, this uses @clock_gettime@ with @CLOCK_BOOTTIME@.
     .
     Release history:
     .

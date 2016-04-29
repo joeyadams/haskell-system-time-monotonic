@@ -30,6 +30,10 @@ module System.Time.Monotonic.Direct (
     systemClock_GetTickCount64,
     systemClock_QueryPerformanceCounter,
 #else
+-- Yes, these #if defined()s work even though we #include <time.h> later; the compiler is smart
+#if defined(CLOCK_BOOTTIME)
+    systemClock_BOOTTIME,
+#endif
     systemClock_MONOTONIC,
     CTimeSpec,
 #endif
@@ -98,7 +102,7 @@ data SystemClock time cumtime = SystemClock
         -- 'DiffTime'.  This may truncate precision if it needs to.
     , systemClockName        :: String
         -- ^ Label identifying this clock, like
-        -- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or
+        -- @\"clock_gettime(CLOCK_BOOTTIME)\"@ or
         -- @\"GetTickCount\"@.  This label is used for the 'Show'
         -- instances of 'SystemClock' and 'SomeSystemClock', and for
         -- 'System.Time.Monotonic.clockDriverName'.
@@ -121,6 +125,9 @@ getSystemClock = do
     case m of
         Just gtc64 -> return $ SomeSystemClock gtc64
         Nothing    -> return $ SomeSystemClock systemClock_GetTickCount
+#elif defined(CLOCK_BOOTTIME)
+getSystemClock =
+    return $ SomeSystemClock systemClock_BOOTTIME
 #else
 getSystemClock =
     return $ SomeSystemClock systemClock_MONOTONIC
@@ -283,6 +290,20 @@ systemClock_MONOTONIC =
     , systemClockCumToDiff   = id
     , systemClockName        = "clock_gettime(CLOCK_MONOTONIC)"
     }
+
+#if defined(CLOCK_BOOTTIME)
+-- | Uses @clock_gettime@ with @CLOCK_BOOTTIME@.
+systemClock_BOOTTIME :: SystemClock CTimeSpec DiffTime
+systemClock_BOOTTIME =
+    SystemClock
+    { systemClockGetTime     = clock_gettime #{const CLOCK_BOOTTIME}
+    , systemClockDiffTime    = diffCTimeSpec
+    , systemClockZeroCumTime = 0
+    , systemClockAddCumTime  = (+)
+    , systemClockCumToDiff   = id
+    , systemClockName        = "clock_gettime(CLOCK_BOOTTIME)"
+    }
+#endif
 
 -- CLOCK_MONOTONIC_RAW is more reliable, but requires
 -- a recent kernel and glibc.
