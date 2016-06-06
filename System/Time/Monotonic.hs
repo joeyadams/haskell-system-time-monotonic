@@ -14,10 +14,12 @@
 --    'Clock' works around this problem, but the workaround only works if
 --    'clockGetTime' is called at least once every 24.8 days.
 --
---  * On Linux, this uses @clock_gettime@ with @CLOCK_MONOTONIC@,
---    which (unfortunately) stops when the computer is suspended.  Thus,
---    'clockGetTime' will not include time spent sleeping.  Do not rely on this
---    behavior, as it may be fixed in a future version of this library.
+--  * On Linux, this uses @clock_gettime@ with @CLOCK_BOOTTIME@. For versions
+--    before 2.6.39, this is not available so we use @CLOCK_MONOTONIC@ instead,
+--    which (unfortunately) stops when the computer is suspended.
+--
+--  * On other POSIX systems, we use @CLOCK_MONOTONIC@ which /should/ in theory
+--    work as @CLOCK_BOOTTIME@ does in Linux, but we haven't yet tested this.
 {-# LANGUAGE ExistentialQuantification #-}
 module System.Time.Monotonic (
     -- * Clock
@@ -91,7 +93,7 @@ newClockWithDriver (SomeSystemClock clock) = do
     return (Clock clock ref)
 
 -- | Return a string identifying the time source, such as
--- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or
+-- @\"clock_gettime(CLOCK_BOOTTIME)\"@ or
 -- @\"GetTickCount\"@.
 clockDriverName :: Clock -> String
 clockDriverName (Clock clock _) = systemClockName clock

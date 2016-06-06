@@ -30,6 +30,13 @@ module System.Time.Monotonic.Direct (
     systemClock_GetTickCount64,
     systemClock_QueryPerformanceCounter,
 #else
+-- Yes, these #if defined()s work even though we #include <time.h> later; the compiler is smart
+#if defined(CLOCK_BOOTTIME)
+    systemClock_BOOTTIME,
+#endif
+#if defined(CLOCK_MONOTONIC_RAW)
+    systemClock_MONOTONIC_RAW,
+#endif
     systemClock_MONOTONIC,
     CTimeSpec,
 #endif
@@ -98,7 +105,7 @@ data SystemClock time cumtime = SystemClock
         -- 'DiffTime'.  This may truncate precision if it needs to.
     , systemClockName        :: String
         -- ^ Label identifying this clock, like
-        -- @\"clock_gettime(CLOCK_MONOTONIC)\"@ or
+        -- @\"clock_gettime(CLOCK_BOOTTIME)\"@ or
         -- @\"GetTickCount\"@.  This label is used for the 'Show'
         -- instances of 'SystemClock' and 'SomeSystemClock', and for
         -- 'System.Time.Monotonic.clockDriverName'.
@@ -121,6 +128,9 @@ getSystemClock = do
     case m of
         Just gtc64 -> return $ SomeSystemClock gtc64
         Nothing    -> return $ SomeSystemClock systemClock_GetTickCount
+#elif defined(CLOCK_BOOTTIME)
+getSystemClock =
+    return $ SomeSystemClock systemClock_BOOTTIME
 #else
 getSystemClock =
     return $ SomeSystemClock systemClock_MONOTONIC
@@ -284,19 +294,37 @@ systemClock_MONOTONIC =
     , systemClockName        = "clock_gettime(CLOCK_MONOTONIC)"
     }
 
--- CLOCK_MONOTONIC_RAW is more reliable, but requires
--- a recent kernel and glibc.
+#if defined(CLOCK_BOOTTIME)
+-- | Uses @clock_gettime@ with @CLOCK_BOOTTIME@.
+systemClock_BOOTTIME :: SystemClock CTimeSpec DiffTime
+systemClock_BOOTTIME =
+    SystemClock
+    { systemClockGetTime     = clock_gettime #{const CLOCK_BOOTTIME}
+    , systemClockDiffTime    = diffCTimeSpec
+    , systemClockZeroCumTime = 0
+    , systemClockAddCumTime  = (+)
+    , systemClockCumToDiff   = id
+    , systemClockName        = "clock_gettime(CLOCK_BOOTTIME)"
+    }
+#endif
+
+#if defined(CLOCK_MONOTONIC_RAW)
+-- | Uses @clock_gettime@ with @CLOCK_MONOTONIC_RAW@.
 --
--- -- | @clock_gettime(CLOCK_MONOTONIC_RAW)@
--- systemClock_MONOTONIC_RAW :: SystemClock CTimeSpec
--- systemClock_MONOTONIC_RAW =
---     SystemClock
---     { systemClockGetTime    = clock_gettime #{const CLOCK_MONOTONIC_RAW}
---     , systemClockDiffTime   = diffCTimeSpec
---     , systemClockAddCumTime = (+)
---     , systemClockCumToDiff  = id
---     , systemClockName       = "clock_gettime(CLOCK_MONOTONIC_RAW)"
---     }
+-- CLOCK_MONOTONIC_RAW is more reliable; according to @man 2 clock_gettime@, it
+-- is not subject to "NTP adjustments or [..] adjtime(3)". However, like
+-- @CLOCK_MONOTONIC@ it stops when the computer is suspended.
+systemClock_MONOTONIC_RAW :: SystemClock CTimeSpec DiffTime
+systemClock_MONOTONIC_RAW =
+    SystemClock
+    { systemClockGetTime     = clock_gettime #{const CLOCK_MONOTONIC_RAW}
+    , systemClockDiffTime    = diffCTimeSpec
+    , systemClockZeroCumTime = 0
+    , systemClockAddCumTime  = (+)
+    , systemClockCumToDiff   = id
+    , systemClockName        = "clock_gettime(CLOCK_MONOTONIC_RAW)"
+    }
+#endif
 
 clock_gettime :: #{type clockid_t} -> IO CTimeSpec
 clock_gettime clk_id =
